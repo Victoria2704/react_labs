@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import BookCard from "./BookCard";
+import fallbackBooks from "./fallbackBooks";
 import "./App.css";
 
 const BOOKS_API_URL = "https://fakeapi.extendsclass.com/books";
@@ -12,6 +13,52 @@ const GOOGLE_API_TIMEOUT_MS = 8000;
 function buildGoogleProxyUrl(imageUrl) {
   const url = new URL(imageUrl.replace("http://", "https://"));
   return `${GOOGLE_IMAGE_PROXY_PREFIX}${url.pathname}${url.search}`;
+}
+
+function escapeXml(value) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
+}
+
+function createPlaceholderCoverBlob(title, authors) {
+  const safeTitle = escapeXml(title || "Book");
+  const safeAuthors = escapeXml(
+    Array.isArray(authors) && authors.length > 0 ? authors.join(", ") : "Unknown author"
+  );
+
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="360" height="520" viewBox="0 0 360 520">
+      <defs>
+        <linearGradient id="coverGradient" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#0f172a" />
+          <stop offset="100%" stop-color="#1d4ed8" />
+        </linearGradient>
+      </defs>
+      <rect width="360" height="520" rx="24" fill="url(#coverGradient)" />
+      <rect x="28" y="28" width="304" height="464" rx="18" fill="rgba(255,255,255,0.08)" />
+      <text x="40" y="110" fill="#bfdbfe" font-family="Arial, sans-serif" font-size="18">
+        Book App
+      </text>
+      <foreignObject x="40" y="145" width="280" height="200">
+        <div xmlns="http://www.w3.org/1999/xhtml"
+          style="font-family: Arial, sans-serif; font-size: 34px; line-height: 1.2; color: white; font-weight: 700;">
+          ${safeTitle}
+        </div>
+      </foreignObject>
+      <foreignObject x="40" y="370" width="280" height="90">
+        <div xmlns="http://www.w3.org/1999/xhtml"
+          style="font-family: Arial, sans-serif; font-size: 20px; line-height: 1.35; color: #dbeafe;">
+          ${safeAuthors}
+        </div>
+      </foreignObject>
+    </svg>
+  `;
+
+  return new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
 }
 
 function createTimeoutSignal(timeoutMs, parentSignal) {
@@ -47,9 +94,23 @@ async function fetchWithTimeout(url, { signal, timeoutMs }) {
   }
 }
 
-async function getBookCoverData(isbn, signal) {
+function buildBaseBooks(data) {
+  const sourceBooks =
+    Array.isArray(data) && data.length > 0 ? data.slice(0, BOOKS_LIMIT) : fallbackBooks;
+
+  return sourceBooks.map((book) => ({
+    ...book,
+    imageBlob: createPlaceholderCoverBlob(book.title, book.authors),
+    imageUrl: "",
+  }));
+}
+
+async function getBookCoverData(book, signal) {
+  const { isbn, title, authors } = book;
+  const placeholderBlob = createPlaceholderCoverBlob(title, authors);
+
   if (!isbn) {
-    return { imageBlob: null, imageUrl: "" };
+    return { imageBlob: placeholderBlob, imageUrl: "" };
   }
 
   try {
@@ -70,7 +131,7 @@ async function getBookCoverData(isbn, signal) {
       ) ?? "";
 
     if (!thumbnail) {
-      return { imageBlob: null, imageUrl: "" };
+      return { imageBlob: placeholderBlob, imageUrl: "" };
     }
 
     try {
@@ -93,7 +154,7 @@ async function getBookCoverData(isbn, signal) {
       }
 
       return {
-        imageBlob: null,
+        imageBlob: placeholderBlob,
         imageUrl: thumbnail,
       };
     }
@@ -102,7 +163,7 @@ async function getBookCoverData(isbn, signal) {
       console.error("Ошибка загрузки обложки:", error);
     }
 
-    return { imageBlob: null, imageUrl: "" };
+    return { imageBlob: placeholderBlob, imageUrl: "" };
   }
 }
 
@@ -131,12 +192,7 @@ function App() {
         }
 
         const data = await response.json();
-        const normalizedBooks = Array.isArray(data) ? data.slice(0, BOOKS_LIMIT) : [];
-        const baseBooks = normalizedBooks.map((book) => ({
-          ...book,
-          imageBlob: null,
-          imageUrl: "",
-        }));
+        const baseBooks = buildBaseBooks(data);
 
         if (isActive) {
           setBooks(baseBooks);
@@ -144,31 +200,44 @@ function App() {
           hasLoadedBaseBooks = true;
         }
 
-        await Promise.all(
-          baseBooks.map(async (book) => {
-            const coverData = await getBookCoverData(book.isbn, controller.signal);
+        for (const book of baseBooks) {
+          const coverData = await getBookCoverData(book, controller.signal);
 
-            if (!isActive) {
-              return;
-            }
+          if (!isActive) {
+            return;
+          }
 
-            setBooks((currentBooks) =>
-              currentBooks.map((currentBook) =>
-                currentBook.id === book.id
-                  ? { ...currentBook, ...coverData }
-                  : currentBook
-              )
-            );
-          })
-        );
+          setBooks((currentBooks) =>
+            currentBooks.map((currentBook) =>
+              currentBook.id === book.id ? { ...currentBook, ...coverData } : currentBook
+            )
+          );
+        }
       } catch (error) {
         if (error.name !== "AbortError") {
           console.error("Ошибка загрузки книг:", error);
 
           if (isActive) {
-            setErrorMessage(
-              "Не удалось загрузить книги. Проверь подключение к интернету и попробуй снова."
-            );
+            const baseBooks = buildBaseBooks([]);
+            setBooks(baseBooks);
+            setLoading(false);
+            hasLoadedBaseBooks = true;
+
+            for (const book of baseBooks) {
+              const coverData = await getBookCoverData(book, controller.signal);
+
+              if (!isActive) {
+                return;
+              }
+
+              setBooks((currentBooks) =>
+                currentBooks.map((currentBook) =>
+                  currentBook.id === book.id ? { ...currentBook, ...coverData } : currentBook
+                )
+              );
+            }
+
+            setErrorMessage("");
           }
         }
       } finally {

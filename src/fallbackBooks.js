@@ -1,0 +1,88 @@
+const fallbackBooks = [
+  {
+    id: 1001,
+    title: "Clean Code",
+    isbn: "9780132350884",
+    pageCount: 464,
+    authors: ["Robert C. Martin"],
+  },
+  {
+    id: 1002,
+    title: "Refactoring",
+    isbn: "9780201485677",
+    pageCount: 448,
+    authors: ["Martin Fowler"],
+  },
+  {
+    id: 1003,
+    title: "Design Patterns",
+    isbn: "9780201633610",
+    pageCount: 395,
+    authors: ["Erich Gamma", "Richard Helm", "Ralph Johnson", "John Vlissides"],
+  },
+  {
+    id: 1004,
+    title: "JavaScript: The Good Parts",
+    isbn: "9780596517748",
+    pageCount: 176,
+    authors: ["Douglas Crockford"],
+  },
+  {
+    id: 1005,
+    title: "You Don't Know JS Yet",
+    isbn: "9781091210099",
+    pageCount: 143,
+    authors: ["Kyle Simpson"],
+  },
+  {
+    id: 1006,
+    title: "Eloquent JavaScript",
+    isbn: "9781593279509",
+    pageCount: 472,
+    authors: ["Marijn Haverbeke"],
+  },
+  {
+    id: 1007,
+    title: "Learning React",
+    isbn: "9781492051725",
+    pageCount: 310,
+    authors: ["Alex Banks", "Eve Porcello"],
+  },
+  {
+    id: 1008,
+    title: "React Up & Running",
+    isbn: "9781491931820",
+    pageCount: 222,
+    authors: ["Stoyan Stefanov"],
+  },
+  {
+    id: 1009,
+    title: "The Pragmatic Programmer",
+    isbn: "9780135957059",
+    pageCount: 352,
+    authors: ["Andrew Hunt", "David Thomas"],
+  },
+  {
+    id: 1010,
+    title: "Head First Design Patterns",
+    isbn: "9781492078005",
+    pageCount: 694,
+    authors: ["Eric Freeman", "Elisabeth Robson"],
+  },
+  {
+    id: 1011,
+    title: "Domain-Driven Design",
+    isbn: "9780321125217",
+    pageCount: 560,
+    authors: ["Eric Evans"],
+  },
+  {
+    id: 1012,
+    title: "Designing Data-Intensive Applications",
+    isbn: "9781491903063",
+    pageCount: 616,
+    authors: ["Martin Kleppmann"],
+  },
+];
+
+export default fallbackBooks;
