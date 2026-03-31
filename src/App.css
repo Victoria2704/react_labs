@@ -21,15 +21,16 @@
   display: flex;
   flex-wrap: wrap;
   gap: 24px;
-  align-items: flex-start;
+  align-items: stretch;
 }
 
 .book-card {
   width: 180px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   text-align: left;
+  min-height: 390px;
 }
 
 .book-image {
@@ -61,6 +62,7 @@
   color: #64748b;
   margin: 0;
   line-height: 1.4;
+  margin-top: 2px;
 }
 
 @media (max-width: 768px) {

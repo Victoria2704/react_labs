@@ -11,6 +11,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/google-books-image/, ""),
       },
+      "/open-library-cover": {
+        target: "https://covers.openlibrary.org",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/open-library-cover/, ""),
+      },
     },
   },
   preview: {
@@ -19,6 +24,11 @@ export default defineConfig({
         target: "https://books.google.com",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/google-books-image/, ""),
+      },
+      "/open-library-cover": {
+        target: "https://covers.openlibrary.org",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/open-library-cover/, ""),
       },
     },
   },
