@@ -1,121 +1,244 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useEffect, useRef, useState } from "react";
+import SearchForm from "./components/SearchForm";
+import CurrentWeatherCard from "./components/CurrentWeatherCard";
+import ForecastList from "./components/ForecastList";
+import AirQualityCard from "./components/AirQualityCard";
+import { loadWeatherByCity, searchCities } from "./services/weatherApi";
+import { getWeatherTheme, pickDailyForecasts } from "./utils/weather";
+import "./App.css";
+
+const DEFAULT_CITY_QUERY = "Новосибирск";
+const QUICK_CITIES = [
+  "Новосибирск",
+  "Москва",
+  "Санкт-Петербург",
+  "Казань",
+];
+const REFRESH_INTERVAL_MS = 3 * 60 * 60 * 1000;
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [searchValue, setSearchValue] = useState(DEFAULT_CITY_QUERY);
+  const [selectedCity, setSelectedCity] = useState(null);
+  const [cityOptions, setCityOptions] = useState([]);
+  const [forecastData, setForecastData] = useState(null);
+  const [airData, setAirData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [source, setSource] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const lastLoadedCityKey = useRef("");
+
+  useEffect(() => {
+    let isActive = true;
+    const controller = new AbortController();
+
+    async function loadInitialCity() {
+      try {
+        const cities = await searchCities(DEFAULT_CITY_QUERY, {
+          signal: controller.signal,
+        });
+
+        if (!isActive) {
+          return;
+        }
+
+        if (cities.length === 0) {
+          throw new Error("Город не найден");
+        }
+
+        setCityOptions(cities);
+        setSelectedCity(cities[0]);
+        setErrorMessage("");
+      } catch (error) {
+        if (error.name !== "AbortError" && isActive) {
+          setErrorMessage("Не удалось получить данные о городе.");
+          setLoading(false);
+        }
+      }
+    }
+
+    loadInitialCity();
+
+    return () => {
+      isActive = false;
+      controller.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedCity) {
+      return undefined;
+    }
+
+    let isActive = true;
+    const controller = new AbortController();
+    const cityKey = `${selectedCity.lat}-${selectedCity.lon}`;
+    const isFirstLoad = lastLoadedCityKey.current !== cityKey;
+
+    async function loadWeather() {
+      try {
+        if (isFirstLoad) {
+          setLoading(true);
+        } else {
+          setRefreshing(true);
+        }
+
+        setErrorMessage("");
+
+        const data = await loadWeatherByCity(selectedCity, {
+          signal: controller.signal,
+        });
+
+        if (!isActive) {
+          return;
+        }
+
+        setForecastData(data.forecast);
+        setAirData(data.air);
+        setSource(data.source);
+        setLastUpdated(new Date());
+        lastLoadedCityKey.current = cityKey;
+      } catch (error) {
+        if (error.name !== "AbortError" && isActive) {
+          setErrorMessage("Не удалось загрузить прогноз погоды.");
+        }
+      } finally {
+        if (isActive) {
+          setLoading(false);
+          setRefreshing(false);
+        }
+      }
+    }
+
+    loadWeather();
+
+    return () => {
+      isActive = false;
+      controller.abort();
+    };
+  }, [selectedCity, reloadToken]);
+
+  useEffect(() => {
+    if (!selectedCity) {
+      return undefined;
+    }
+
+    const intervalId = setInterval(() => {
+      setReloadToken((currentValue) => currentValue + 1);
+    }, REFRESH_INTERVAL_MS);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [selectedCity]);
+
+  async function findCities(query) {
+    const trimmedQuery = query.trim();
+
+    if (!trimmedQuery) {
+      setErrorMessage("Введите название города.");
+      return;
+    }
+
+    try {
+      setSearching(true);
+      setErrorMessage("");
+
+      const cities = await searchCities(trimmedQuery);
+
+      if (cities.length === 0) {
+        setCityOptions([]);
+        setErrorMessage("Город не найден.");
+        return;
+      }
+
+      setCityOptions(cities);
+      setSelectedCity(cities[0]);
+    } catch {
+      setErrorMessage("Не удалось выполнить поиск города.");
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    void findCities(searchValue);
+  }
+
+  function handleQuickCitySelect(cityName) {
+    setSearchValue(cityName);
+    void findCities(cityName);
+  }
+
+  function handleCityOptionSelect(city) {
+    setSelectedCity(city);
+    setSearchValue(city.localNames?.ru ?? city.name);
+  }
+
+  function handleManualRefresh() {
+    setReloadToken((currentValue) => currentValue + 1);
+  }
+
+  const currentWeather = forecastData?.list?.[0] ?? null;
+  const dailyForecast = pickDailyForecasts(forecastData?.list ?? []);
+  const theme = getWeatherTheme(currentWeather?.weather?.[0]?.main);
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <main className={`page theme-${theme}`}>
+      <div className="app">
+        <section className="hero">
+          <div className="hero-text">
+            <p className="hero-label">Лабораторная работа 8-9</p>
+            <h1>Прогноз погоды на несколько дней</h1>
+            <p className="hero-description">
+              Приложение показывает прогноз на 5 дней, качество воздуха и
+              обновляет данные каждые 3 часа.
+            </p>
+          </div>
 
-      <div className="ticks"></div>
+          <SearchForm
+            searchValue={searchValue}
+            cityOptions={cityOptions}
+            quickCities={QUICK_CITIES}
+            searching={searching}
+            selectedCity={selectedCity}
+            onSearchValueChange={setSearchValue}
+            onSubmit={handleSubmit}
+            onQuickCitySelect={handleQuickCitySelect}
+            onCityOptionSelect={handleCityOptionSelect}
+          />
+        </section>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        {errorMessage ? <p className="status status-error">{errorMessage}</p> : null}
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+        {loading ? (
+          <p className="status">Загрузка данных о погоде...</p>
+        ) : null}
+
+        {!loading && currentWeather ? (
+          <section className="content">
+            <CurrentWeatherCard
+              city={selectedCity}
+              currentWeather={currentWeather}
+              lastUpdated={lastUpdated}
+              source={source}
+              refreshing={refreshing}
+              onRefresh={handleManualRefresh}
+            />
+
+            <div className="details-grid">
+              <ForecastList forecastItems={dailyForecast} />
+              <AirQualityCard airData={airData} />
+            </div>
+          </section>
+        ) : null}
+      </div>
+    </main>
+  );
 }
 
-export default App
+export default App;
