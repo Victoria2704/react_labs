@@ -27,7 +27,6 @@ function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [source, setSource] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const lastLoadedCityKey = useRef("");
 
@@ -98,7 +97,6 @@ function App() {
 
         setForecastData(data.forecast);
         setAirData(data.air);
-        setSource(data.source);
         setLastUpdated(new Date());
         lastLoadedCityKey.current = cityKey;
       } catch (error) {
@@ -190,28 +188,21 @@ function App() {
   return (
     <main className={`page theme-${theme}`}>
       <div className="app">
-        <section className="hero">
-          <div className="hero-text">
-            <p className="hero-label">Лабораторная работа 8-9</p>
-            <h1>Прогноз погоды на несколько дней</h1>
-            <p className="hero-description">
-              Приложение показывает прогноз на 5 дней, качество воздуха и
-              обновляет данные каждые 3 часа.
-            </p>
-          </div>
+        <header className="page-header">
+          <h1>Прогноз погоды</h1>
+        </header>
 
-          <SearchForm
-            searchValue={searchValue}
-            cityOptions={cityOptions}
-            quickCities={QUICK_CITIES}
-            searching={searching}
-            selectedCity={selectedCity}
-            onSearchValueChange={setSearchValue}
-            onSubmit={handleSubmit}
-            onQuickCitySelect={handleQuickCitySelect}
-            onCityOptionSelect={handleCityOptionSelect}
-          />
-        </section>
+        <SearchForm
+          searchValue={searchValue}
+          cityOptions={cityOptions}
+          quickCities={QUICK_CITIES}
+          searching={searching}
+          selectedCity={selectedCity}
+          onSearchValueChange={setSearchValue}
+          onSubmit={handleSubmit}
+          onQuickCitySelect={handleQuickCitySelect}
+          onCityOptionSelect={handleCityOptionSelect}
+        />
 
         {errorMessage ? <p className="status status-error">{errorMessage}</p> : null}
 
@@ -225,7 +216,6 @@ function App() {
               city={selectedCity}
               currentWeather={currentWeather}
               lastUpdated={lastUpdated}
-              source={source}
               refreshing={refreshing}
               onRefresh={handleManualRefresh}
             />

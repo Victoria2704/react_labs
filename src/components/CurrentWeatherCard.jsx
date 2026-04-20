@@ -8,7 +8,6 @@ function CurrentWeatherCard({
   city,
   currentWeather,
   lastUpdated,
-  source,
   refreshing,
   onRefresh,
 }) {
@@ -21,10 +20,7 @@ function CurrentWeatherCard({
         <div>
           <h2 className="city-name">{formatCityName(city)}</h2>
           <p className="current-description">{weather.description}</p>
-          <p className="current-meta">
-            Обновлено: {formatDateTime(lastUpdated)} | Источник:{" "}
-            {source === "mock" ? "моки" : "OpenWeather"}
-          </p>
+          <p className="current-meta">Обновлено: {formatDateTime(lastUpdated)}</p>
         </div>
 
         <button className="refresh-button" type="button" onClick={onRefresh}>
